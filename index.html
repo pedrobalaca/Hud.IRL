@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HUD IRL - Natal</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .hud {
+    width: 300px;
+    padding: 7px;
+    color: white;
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 8px;
+    box-shadow: 0 3px 12px rgba(0,0,0,.18);
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+    padding: 5px 8px;
+    margin: 3px 0;
+    background: rgba(0,0,0,.22);
+    border-radius: 5px;
+  }
+
+  .icon {
+    width: 48px;
+    text-align: center;
+    font-size: 27px;
+    line-height: 1;
+    margin-right: 7px;
+  }
+
+  .info {
+    border-left: 2px solid rgba(255,255,255,.18);
+    padding-left: 10px;
+  }
+
+  .value {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: .5px;
+  }
+
+  .label {
+    margin-top: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    opacity: .55;
+  }
+
+  .status {
+    position: fixed;
+    left: 10px;
+    bottom: 5px;
+    font-size: 9px;
+    color: rgba(255,255,255,.45);
+  }
+</style>
+</head>
+
+<body>
+
+<div class="hud">
+
+  <!-- TEMPERATURA -->
+  <div class="row">
+    <div class="icon" id="weatherIcon">☀️</div>
+
+    <div class="info">
+      <div class="value" id="temperature">--°C</div>
+      <div class="label">TEMPERATURA</div>
+    </div>
+  </div>
+
+  <!-- HORÁRIO -->
+  <div class="row">
+    <div class="icon">🕐</div>
+
+    <div class="info">
+      <div class="value" id="time">--:--</div>
+      <div class="label">HORÁRIO</div>
+    </div>
+  </div>
+
+  <!-- DATA -->
+  <div class="row">
+    <div class="icon">📅</div>
+
+    <div class="info">
+      <div class="value" id="date">--/--/----</div>
+      <div class="label" id="weekday">DATA</div>
+    </div>
+  </div>
+
+  <!-- DISTÂNCIA -->
+  <div class="row">
+    <div class="icon">🚶</div>
+
+    <div class="info">
+      <div class="value" id="distance">0,00 km</div>
+      <div class="label">DISTÂNCIA PERCORRIDA</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="status" id="status">
+  Iniciando GPS...
+</div>
+
+
+<script>
+
+// =====================================================
+// CONFIGURAÇÕES
+// =====================================================
+
+const LAT = -5.7950;
+const LON = -35.2094;
+
+
+// =====================================================
+// ÍCONES DO CLIMA
+// =====================================================
+
+const weatherIcons = {
+  0: "☀️",
+  1: "🌤️",
+  2: "⛅",
+  3: "☁️",
+  45: "🌫️",
+  48: "🌫️",
+  51: "🌦️",
+  53: "🌦️",
+  55: "🌧️",
+  56: "🌧️",
+  57: "🌧️",
+  61: "🌧️",
+  63: "🌧️",
+  65: "🌧️",
+  66: "🌧️",
+  67: "🌧️",
+  71: "🌨️",
+  73: "🌨️",
+  75: "❄️",
+  77: "🌨️",
+  80: "🌦️",
+  81: "🌧️",
+  82: "⛈️",
+  85: "🌨️",
+  86: "🌨️",
+  95: "⛈️",
+  96: "⛈️",
+  99: "⛈️"
+};
+
+
+// =====================================================
+// RELÓGIO
+// =====================================================
+
+function updateClock() {
+
+  const now = new Date();
+
+  document.getElementById("time").textContent =
+    now.toLocaleTimeString("pt-BR", {
+      timeZone: "America/Fortaleza",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
+
+
+  document.getElementById("date").textContent =
+    now.toLocaleDateString("pt-BR", {
+      timeZone: "America/Fortaleza",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+
+
+  document.getElementById("weekday").textContent =
+    now.toLocaleDateString("pt-BR", {
+      timeZone: "America/Fortaleza",
+      weekday: "long"
+    }).toUpperCase();
+}
+
+
+// =====================================================
+// CLIMA
+// =====================================================
+
+async function updateWeather() {
+
+  try {
+
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}` +
+      `&current=temperature_2m,weather_code&timezone=America%2FFortaleza`;
+
+
+    const response =
+      await fetch(url, {
+        cache: "no-store"
+      });
+
+
+    if (!response.ok) {
+      throw new Error("Falha na API");
+    }
+
+
+    const data = await response.json();
+
+
+    const temp =
+      Math.round(data.current.temperature_2m);
+
+
+    const code =
+      data.current.weather_code;
+
+
+    document.getElementById("temperature").textContent =
+      `${temp}°C`;
+
+
+    document.getElementById("weatherIcon").textContent =
+      weatherIcons[code] || "🌡️";
+
+
+    document.getElementById("status").textContent =
+      "Clima atualizado • Natal/RN";
+
+  }
+
+  catch (error) {
+
+    document.getElementById("status").textContent =
+      "Clima indisponível • tentando novamente";
+
+  }
+
+}
+
+
+// =====================================================
+// DISTÂNCIA GPS
+// =====================================================
+
+// Distância acumulada em quilômetros
+let totalDistance =
+  parseFloat(localStorage.getItem("hudDistance")) || 0;
+
+
+// Última posição conhecida
+let lastPosition = null;
+
+
+// -----------------------------------------------------
+// Cálculo da distância entre dois pontos GPS
+// -----------------------------------------------------
+
+function distanceBetween(lat1, lon1, lat2, lon2) {
+
+  const R = 6371; // raio da Terra em km
+
+
+  const dLat =
+    (lat2 - lat1) * Math.PI / 180;
+
+
+  const dLon =
+    (lon2 - lon1) * Math.PI / 180;
+
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+
+
+  return R *
+    2 *
+    Math.atan2(
+      Math.sqrt(a),
+      Math.sqrt(1 - a)
+    );
+}
+
+
+// -----------------------------------------------------
+// Atualiza a distância
+// -----------------------------------------------------
+
+function updateDistance(position) {
+
+  const lat =
+    position.coords.latitude;
+
+
+  const lon =
+    position.coords.longitude;
+
+
+  const accuracy =
+    position.coords.accuracy;
+
+
+  // Primeira posição
+  if (!lastPosition) {
+
+    lastPosition = {
+      lat: lat,
+      lon: lon
+    };
+
+    document.getElementById("status").textContent =
+      "GPS conectado • rastreando";
+
+    return;
+  }
+
+
+  // Calcula distância desde a última posição
+  const distance =
+    distanceBetween(
+      lastPosition.lat,
+      lastPosition.lon,
+      lat,
+      lon
+    );
+
+
+  /*
+    Ignora movimentos muito pequenos.
+
+    0.005 km = 5 metros
+
+    Isso ajuda a evitar que a oscilação
+    normal do GPS conte como caminhada.
+  */
+
+  if (distance >= 0.005) {
+
+    /*
+      Se a precisão do GPS estiver muito ruim,
+      ignoramos essa leitura.
+    */
+
+    if (accuracy <= 50) {
+
+      totalDistance += distance;
+
+
+      // Salva no navegador
+      localStorage.setItem(
+        "hudDistance",
+        totalDistance
+      );
+
+
+      // Atualiza HUD
+      document.getElementById("distance").textContent =
+        totalDistance
+          .toFixed(2)
+          .replace(".", ",") +
+        " km";
+    }
+
+
+    // Atualiza última posição
+    lastPosition = {
+      lat: lat,
+      lon: lon
+    };
+  }
+
+}
+
+
+// =====================================================
+// ERRO DO GPS
+// =====================================================
+
+function locationError(error) {
+
+  console.log("Erro GPS:", error);
+
+
+  document.getElementById("status").textContent =
+    "GPS indisponível";
+}
+
+
+// =====================================================
+// INICIAR GPS
+// =====================================================
+
+if ("geolocation" in navigator) {
+
+  navigator.geolocation.watchPosition(
+    updateDistance,
+    locationError,
+    {
+      enableHighAccuracy: true,
+      maximumAge: 3000,
+      timeout: 10000
+    }
+  );
+
+} else {
+
+  document.getElementById("status").textContent =
+    "GPS não suportado";
+}
+
+
+// =====================================================
+// INICIALIZAÇÃO
+// =====================================================
+
+updateClock();
+
+updateWeather();
+
+
+// Atualiza relógio a cada segundo
+setInterval(
+  updateClock,
+  1000
+);
+
+
+// Atualiza clima a cada 10 minutos
+setInterval(
+  updateWeather,
+  10 * 60 * 1000
+);
+
+
+// Mostra distância salva ao iniciar
+document.getElementById("distance").textContent =
+  totalDistance
+    .toFixed(2)
+    .replace(".", ",") +
+  " km";
+
+</script>
+
+</body>
+</html>
